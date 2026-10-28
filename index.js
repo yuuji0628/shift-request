@@ -303,7 +303,7 @@ function staffPage() {
       <p class="small">日付をタップすると選択／解除できます。複数選択できます。</p>
 
       <div class="row" style="margin-top:10px">
-        <button type="button" class="secondary" id="copyTime">最初の時間を全日にコピー</button>
+        <button type="button" class="secondary" id="copyTime">最初の開始時間を全日にコピー</button>
         <button type="button" class="secondary" id="clearAll">選択を全部解除</button>
       </div>
     </section>
@@ -373,6 +373,24 @@ function staffPage() {
 }
 .remove-day{
   font-size:14px;
+}
+
+
+/* staff availability symbols */
+.selected-card .choice button{
+  font-size:24px;
+  font-weight:900;
+  padding:9px 8px;
+}
+.selected-card .choice .available.active::after{
+  content:" 出勤可能";
+  font-size:13px;
+  font-weight:700;
+}
+.selected-card .choice .off.active::after{
+  content:" 休み";
+  font-size:13px;
+  font-weight:700;
 }
 
 </style>
@@ -451,20 +469,20 @@ function renderSelected(){
     return '<section class="selected-card" data-date="'+iso+'">'
       + '<div class="selected-title"><strong>'+labelDate(iso)+'</strong><button type="button" class="remove-day">削除</button></div>'
       + '<div class="choice">'
-      + '<button type="button" class="available '+(item.status==='available'?'active':'')+'" data-action="available">出勤できます</button>'
-      + '<button type="button" class="off '+(item.status==='off'?'active':'')+'" data-action="off">休み希望</button>'
+      + '<button type="button" class="available '+(item.status==='available'?'active':'')+'" data-action="available">◯</button>'
+      + '<button type="button" class="off '+(item.status==='off'?'active':'')+'" data-action="off">×</button>'
       + '</div>'
       + '<div class="time-area" style="'+(item.status==='off'?'display:none':'')+'">'
       + '<label>希望時間</label><div class="row">'
-      + '<select class="startTime" data-value="'+(item.start_time||'')+'" aria-label="開始時間"></select>'
-      + '<select class="endTime" data-value="'+(item.end_time||'')+'" aria-label="終了時間"></select>'
+      + '<input class="startTime" type="time" step="900" value="'+(item.start_time||'')+'" aria-label="開始時間">'
+      + '<input class="endTime" type="time" step="900" value="'+(item.end_time||'')+'" aria-label="終了時間">'
       + '</div></div>'
       + '<label>備考</label>'
       + '<textarea class="note" placeholder="例：17時まで／時間相談可 など">'+(item.note||'')+'</textarea>'
       + '</section>';
   }).join('');
 
-  document.querySelectorAll('.startTime, .endTime').forEach(fillTimeSelect15);
+  document.querySelectorAll('.startTime').forEach(fillTimeSelect15);
 
   document.querySelectorAll('.selected-card').forEach(card=>{
     const iso = card.dataset.date;
@@ -472,14 +490,12 @@ function renderSelected(){
     const availableBtn = card.querySelector('[data-action="available"]');
     const offBtn = card.querySelector('[data-action="off"]');
     const startInput = card.querySelector('.startTime');
-    const endInput = card.querySelector('.endTime');
-    const noteInput = card.querySelector('.note');
+        const noteInput = card.querySelector('.note');
 
     availableBtn.addEventListener('click',()=>{item.status='available';renderSelected();renderCalendar();});
-    offBtn.addEventListener('click',()=>{item.status='off';item.start_time='';item.end_time='';renderSelected();renderCalendar();});
+    offBtn.addEventListener('click',()=>{item.status='off';item.start_time='';renderSelected();renderCalendar();});
     startInput.addEventListener('change',()=>item.start_time=startInput.value);
-    endInput.addEventListener('change',()=>item.end_time=endInput.value);
-    noteInput.addEventListener('input',()=>item.note=noteInput.value);
+        noteInput.addEventListener('input',()=>item.note=noteInput.value);
     card.querySelector('.remove-day').addEventListener('click',()=>{selected.delete(iso);renderSelected();renderCalendar();});
   });
 }
@@ -498,15 +514,15 @@ document.getElementById('copyTime').addEventListener('click',()=>{
   if(!dates.length){
     message.className='msg err'; message.textContent='先に日付を選択してください。'; return;
   }
-  const source = dates.map(d=>selected.get(d)).find(v=>v.status==='available' && (v.start_time || v.end_time));
+  const source = dates.map(d=>selected.get(d)).find(v=>v.status==='available' && v.start_time);
   if(!source){
-    message.className='msg err'; message.textContent='まず1日分の希望時間を入力してください。'; return;
+    message.className='msg err'; message.textContent='まず1日分の開始可能時間を入力してください。'; return;
   }
   dates.forEach(d=>{
     const item=selected.get(d);
-    if(item.status==='available'){item.start_time=source.start_time;item.end_time=source.end_time;}
+    if(item.status==='available'){item.start_time=source.start_time;}
   });
-  message.className='msg ok'; message.textContent='希望時間を出勤可能日の全日にコピーしました。';
+  message.className='msg ok'; message.textContent='開始可能時間を◯の日にコピーしました。';
   renderSelected();
 });
 document.getElementById('submitAll').addEventListener('click', async ()=>{
@@ -519,7 +535,7 @@ document.getElementById('submitAll').addEventListener('click', async ()=>{
 
   const items=dates.map(date=>{
     const v=selected.get(date);
-    return {date,status:v.status,start_time:v.status==='available'?v.start_time:'',end_time:v.status==='available'?v.end_time:'',note:v.note||''};
+    return {date,status:v.status,start_time:v.status==='available'?v.start_time:'',end_time:'',note:v.note||''};
   });
 
   try{
@@ -741,7 +757,7 @@ async function adminPage(request, env) {
           <div class="person-summary-left">
             <span class="name">${escapeHtml(p.name)}</span>
             <span class="badge ${p.status === "available" ? "available" : "off"}">
-              ${p.status === "available" ? "出勤可" : "休み希望"}
+              ${p.status === "available" ? "◯" : "×"}
             </span>
             ${streakBadge(streaks[p.name] || 0)}
           </div>
@@ -752,9 +768,7 @@ async function adminPage(request, env) {
           <div class="meta">
             希望：
             ${p.status === "available"
-              ? (p.start_time || p.end_time
-                ? `${escapeHtml(p.start_time || "未定")} 〜 ${escapeHtml(p.end_time || "未定")}`
-                : "時間未指定")
+              ? (p.start_time ? `${escapeHtml(p.start_time)}から可能` : "時間希望なし")
               : "休み"}
           </div>
 
@@ -919,7 +933,7 @@ async function handleApiMulti(request, env) {
     const date = String(item.date || "").trim();
     const status = item.status === "off" ? "off" : "available";
     const start = status === "available" ? String(item.start_time || "").trim() : "";
-    const end = status === "available" ? String(item.end_time || "").trim() : "";
+    const end = "";
     const note = String(item.note || "").trim();
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "日付データに不備があります" }, 400);
@@ -963,7 +977,7 @@ async function handleApiWeek(request, env) {
     const date = String(item.date || "").trim();
     const status = item.status === "off" ? "off" : "available";
     const start = status === "available" ? String(item.start_time || "").trim() : "";
-    const end = status === "available" ? String(item.end_time || "").trim() : "";
+    const end = "";
     const note = String(item.note || "").trim();
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
