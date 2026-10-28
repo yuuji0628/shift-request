@@ -278,7 +278,7 @@ textarea{min-height:100px;resize:vertical}
 }
 .daily-summary-row{
   display:grid;
-  grid-template-columns:68px 1fr 1fr 1fr;
+  grid-template-columns:82px 1fr 1fr 1fr;
   align-items:center;
   gap:6px;
   background:#fff;
@@ -289,6 +289,15 @@ textarea{min-height:100px;resize:vertical}
 .daily-summary-date{
   font-weight:900;
   font-size:16px;
+  line-height:1.15;
+  white-space:nowrap;
+}
+.daily-summary-date .dow{
+  display:block;
+  margin-top:2px;
+  font-size:12px;
+  color:var(--muted);
+  font-weight:700;
 }
 .daily-summary-metric{
   text-align:center;
@@ -307,7 +316,7 @@ textarea{min-height:100px;resize:vertical}
 }
 @media(max-width:520px){
   .daily-summary-row{
-    grid-template-columns:58px 1fr 1fr 1fr;
+    grid-template-columns:72px 1fr 1fr 1fr;
     padding:8px;
   }
   .daily-summary-metric{
@@ -732,6 +741,19 @@ async function adminPage(request, env) {
       r.name ASC
   `).bind(month).all();
 
+  const actualCountRows = await env.DB.prepare(`
+    SELECT shift_date, COUNT(*) AS cnt
+    FROM actual_shifts
+    WHERE assigned = 1
+      AND substr(shift_date,1,7) = ?
+    GROUP BY shift_date
+  `).bind(month).all();
+
+  const actualCountByDate = {};
+  for (const r of actualCountRows.results || []) {
+    actualCountByDate[r.shift_date] = Number(r.cnt) || 0;
+  }
+
   const streakRows = await env.DB.prepare(`
     SELECT name, shift_date, assigned
     FROM actual_shifts
@@ -786,19 +808,19 @@ async function adminPage(request, env) {
 
   const dailySummaryRows = Object.entries(grouped).map(([date, people]) => {
     const d = new Date(date + "T00:00:00");
-    const label = new Intl.DateTimeFormat("ja-JP", {
-      month: "numeric",
-      day: "numeric",
-      weekday: "short"
-    }).format(d);
+    const md = `${d.getMonth() + 1}/${d.getDate()}`;
+    const dow = ["日","月","火","水","木","金","土"][d.getDay()];
 
     const available = people.filter(p => p.status === "available").length;
     const off = people.filter(p => p.status === "off").length;
-    const assigned = people.filter(p => Number(p.assigned) === 1).length;
+    const assigned = actualCountByDate[date] || 0;
 
     return `
       <div class="daily-summary-row">
-        <div class="daily-summary-date">${escapeHtml(label)}</div>
+        <div class="daily-summary-date">
+          ${escapeHtml(md)}
+          <span class="dow">(${escapeHtml(dow)})</span>
+        </div>
         <div class="daily-summary-metric">
           <span>可能</span>
           <b>${available}人</b>
@@ -915,7 +937,7 @@ async function adminPage(request, env) {
     <section>
       <div style="margin-bottom:8px">
         <h2 style="margin:0;font-size:18px">日付ごとの人数</h2>
-        <div class="small">可能人数・休み人数・実際に入れた人数を日ごとに確認できます。</div>
+        <div class="small">可能人数・休み人数・実際にシフトへ入れた人数を日ごとに確認できます。</div>
       </div>
       <div class="daily-summary">
         ${dailySummaryRows || '<section class="card empty">この月の提出はまだありません。</section>'}
