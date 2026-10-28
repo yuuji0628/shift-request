@@ -838,7 +838,7 @@ async function adminPage(request, env) {
           <b>${off}人</b>
         </div>
         <div class="daily-summary-metric">
-          <span>実際</span>
+          <span>シフト確定</span>
           <b>${assigned}人</b>
         </div>
       </div>`;
@@ -907,7 +907,7 @@ async function adminPage(request, env) {
     <div class="topnav">
       <div>
         <h1 style="margin:0">シフト希望 管理</h1>
-        <div class="small">希望確認・実際のシフト確定・連勤チェック</div>
+        <div class="small">希望確認・シフト確定・連勤チェック</div>
       </div>
     </div>
 
@@ -923,9 +923,9 @@ async function adminPage(request, env) {
       <div class="matrix-caption">
         <div>
           <h2 style="margin:0;font-size:18px">シフト実績表</h2>
-          <div class="small">名前ごとに、実際にシフトへ入った日を確認できます。</div>
+          <div class="small">名前ごとに、シフト確定した日を確認できます。</div>
         </div>
-        <div class="matrix-legend">◯ 入った / － 入っていない / 休 休み希望</div>
+        <div class="matrix-legend">◯ シフト確定 / － 未確定 / 休 休み希望</div>
       </div>
       <div class="matrix-wrap">
         <table class="shift-matrix">
@@ -945,7 +945,7 @@ async function adminPage(request, env) {
     <section>
       <div style="margin-bottom:8px">
         <h2 style="margin:0;font-size:18px">日付ごとの人数</h2>
-        <div class="small">可能人数・休み人数・実際にシフトへ入れた人数を、名前の重複を除いて日ごとに確認できます。</div>
+        <div class="small">可能人数・休み人数・シフト確定人数を、名前の重複を除いて日ごとに確認できます。</div>
       </div>
       <div class="daily-summary">
         ${dailySummaryRows || '<section class="card empty">この月の提出はまだありません。</section>'}
