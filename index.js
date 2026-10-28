@@ -270,6 +270,51 @@ textarea{min-height:100px;resize:vertical}
   color:var(--muted);
 }
 
+
+.daily-summary{
+  display:grid;
+  gap:8px;
+  margin-bottom:14px;
+}
+.daily-summary-row{
+  display:grid;
+  grid-template-columns:68px 1fr 1fr 1fr;
+  align-items:center;
+  gap:6px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+}
+.daily-summary-date{
+  font-weight:900;
+  font-size:16px;
+}
+.daily-summary-metric{
+  text-align:center;
+  background:#f8fafc;
+  border-radius:10px;
+  padding:7px 5px;
+}
+.daily-summary-metric span{
+  display:block;
+  font-size:11px;
+  color:var(--muted);
+}
+.daily-summary-metric b{
+  display:block;
+  font-size:18px;
+}
+@media(max-width:520px){
+  .daily-summary-row{
+    grid-template-columns:58px 1fr 1fr 1fr;
+    padding:8px;
+  }
+  .daily-summary-metric{
+    padding:6px 3px;
+  }
+}
+
 </style>
 ${extraHead}
 </head>
@@ -739,6 +784,36 @@ async function adminPage(request, env) {
     (grouped[r.shift_date] ||= []).push(r);
   }
 
+  const dailySummaryRows = Object.entries(grouped).map(([date, people]) => {
+    const d = new Date(date + "T00:00:00");
+    const label = new Intl.DateTimeFormat("ja-JP", {
+      month: "numeric",
+      day: "numeric",
+      weekday: "short"
+    }).format(d);
+
+    const available = people.filter(p => p.status === "available").length;
+    const off = people.filter(p => p.status === "off").length;
+    const assigned = people.filter(p => Number(p.assigned) === 1).length;
+
+    return `
+      <div class="daily-summary-row">
+        <div class="daily-summary-date">${escapeHtml(label)}</div>
+        <div class="daily-summary-metric">
+          <span>可能</span>
+          <b>${available}人</b>
+        </div>
+        <div class="daily-summary-metric">
+          <span>休み</span>
+          <b>${off}人</b>
+        </div>
+        <div class="daily-summary-metric">
+          <span>実際</span>
+          <b>${assigned}人</b>
+        </div>
+      </div>`;
+  }).join("");
+
   const assignedCount = (rows.results || []).filter(r => Number(r.assigned) === 1).length;
   const availableCount = (rows.results || []).filter(r => r.status === "available").length;
   const offCount = (rows.results || []).filter(r => r.status === "off").length;
@@ -837,14 +912,14 @@ async function adminPage(request, env) {
       </div>
     </section>
 
-    <section class="summary-card">
-      <div class="summary-grid">
-        <div class="summary-item"><span class="small">出勤可能希望</span><b>${availableCount}</b></div>
-        <div class="summary-item"><span class="small">休み希望</span><b>${offCount}</b></div>
-        <div class="summary-item"><span class="small">実際に入れた</span><b>${assignedCount}</b></div>
-        <div class="summary-item"><span class="small">連勤警告</span><b>${Object.values(streaks).filter(n=>n>=5).length}</b></div>
+    <section>
+      <div style="margin-bottom:8px">
+        <h2 style="margin:0;font-size:18px">日付ごとの人数</h2>
+        <div class="small">可能人数・休み人数・実際に入れた人数を日ごとに確認できます。</div>
       </div>
-      <div class="small" style="margin-top:8px">5連勤＝注意、6連勤以上＝強い警告として表示します。</div>
+      <div class="daily-summary">
+        ${dailySummaryRows || '<section class="card empty">この月の提出はまだありません。</section>'}
+      </div>
     </section>
 
     ${days || '<section class="card empty">この月の提出はまだありません。</section>'}
