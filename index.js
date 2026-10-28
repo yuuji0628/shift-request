@@ -742,11 +742,14 @@ async function adminPage(request, env) {
   `).bind(month).all();
 
   const actualCountRows = await env.DB.prepare(`
-    SELECT shift_date, COUNT(*) AS cnt
-    FROM actual_shifts
-    WHERE assigned = 1
-      AND substr(shift_date,1,7) = ?
-    GROUP BY shift_date
+    SELECT a.shift_date, COUNT(DISTINCT a.name) AS cnt
+    FROM actual_shifts a
+    INNER JOIN shift_requests r
+      ON r.name = a.name
+     AND r.shift_date = a.shift_date
+    WHERE a.assigned = 1
+      AND substr(a.shift_date,1,7) = ?
+    GROUP BY a.shift_date
   `).bind(month).all();
 
   const actualCountByDate = {};
@@ -811,8 +814,13 @@ async function adminPage(request, env) {
     const md = `${d.getMonth() + 1}/${d.getDate()}`;
     const dow = ["日","月","火","水","木","金","土"][d.getDay()];
 
-    const available = people.filter(p => p.status === "available").length;
-    const off = people.filter(p => p.status === "off").length;
+    const normalizeName = s => String(s || "").replace(/[\s　]+/g, "").trim();
+    const available = new Set(
+      people.filter(p => p.status === "available").map(p => normalizeName(p.name))
+    ).size;
+    const off = new Set(
+      people.filter(p => p.status === "off").map(p => normalizeName(p.name))
+    ).size;
     const assigned = actualCountByDate[date] || 0;
 
     return `
@@ -937,7 +945,7 @@ async function adminPage(request, env) {
     <section>
       <div style="margin-bottom:8px">
         <h2 style="margin:0;font-size:18px">日付ごとの人数</h2>
-        <div class="small">可能人数・休み人数・実際にシフトへ入れた人数を日ごとに確認できます。</div>
+        <div class="small">可能人数・休み人数・実際にシフトへ入れた人数を、名前の重複を除いて日ごとに確認できます。</div>
       </div>
       <div class="daily-summary">
         ${dailySummaryRows || '<section class="card empty">この月の提出はまだありません。</section>'}
