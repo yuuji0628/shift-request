@@ -303,8 +303,6 @@ async function isAdmin(request, env) {
 }
 
 async function adminPage(request, env) {
-  if (!(await isAdmin(request, env))) return adminLoginPage();
-
   const url = new URL(request.url);
   const month = url.searchParams.get("month") || new Date().toISOString().slice(0, 7);
 
@@ -361,7 +359,6 @@ async function adminPage(request, env) {
         <h1 style="margin:0">シフト希望 管理</h1>
         <div class="small">日付ごとに出勤可能者・休み希望を確認できます。</div>
       </div>
-      <a href="/admin/logout">ログアウト</a>
     </div>
 
     <section class="card">
@@ -440,7 +437,6 @@ async function handleAdminLogin(request, env) {
 }
 
 async function handleAdminDelete(request, env) {
-  if (!(await isAdmin(request, env))) return json({ error: "Unauthorized" }, 401);
   const url = new URL(request.url);
   const id = Number(url.searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) return json({ error: "Invalid id" }, 400);
@@ -456,16 +452,6 @@ export default {
       if (url.pathname === "/") return staffPage();
       if (url.pathname === "/api/shift") return handleApiShift(request, env);
 
-      if (url.pathname === "/admin/login") return handleAdminLogin(request, env);
-      if (url.pathname === "/admin/logout") {
-        return new Response(null, {
-          status: 302,
-          headers: {
-            location: "/admin",
-            "set-cookie": "shift_admin=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0"
-          }
-        });
-      }
       if (url.pathname === "/api/admin/delete") return handleAdminDelete(request, env);
       if (url.pathname === "/admin") return adminPage(request, env);
 
