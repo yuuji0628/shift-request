@@ -1,4 +1,3 @@
-
 name = "shift-request"
 main = "index.js"
 compatibility_date = "2026-10-01"
@@ -6,4 +5,4 @@ compatibility_date = "2026-10-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "shift-request-db"
-database_id = "PUT_YOUR_D1_DATABASE_ID_HERE"
+database_id = "7f19db3f-82fb-408c-9b6a-1c03069f388c"
