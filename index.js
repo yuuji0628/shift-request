@@ -174,36 +174,69 @@ function staffPage() {
   <div class="wrap">
     <section class="hero">
       <h1>シフト希望提出</h1>
-      <p>1週間分をまとめて入力して送信できます。</p>
+      <p>カレンダーから複数の日付を選び、まとめて送信できます。</p>
     </section>
 
     <section class="card">
       <label for="name">名前</label>
       <input id="name" autocomplete="name" placeholder="例：山田 太郎">
 
-      <label for="weekStart">週の開始日</label>
-      <input id="weekStart" type="date">
-      <p class="small" style="margin-top:-8px">開始日を選ぶと、その日から7日分を表示します。</p>
+      <label>希望日を選択</label>
+      <div class="calendar-head">
+        <button type="button" class="secondary" id="prevMonth">‹</button>
+        <div id="monthTitle" class="month-title"></div>
+        <button type="button" class="secondary" id="nextMonth">›</button>
+      </div>
+      <div class="weekday-row">
+        <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+      </div>
+      <div id="calendar" class="calendar"></div>
+      <p class="small">日付をタップすると選択／解除できます。複数選択できます。</p>
 
-      <div class="row" style="margin-top:8px">
-        <button type="button" class="secondary" id="applyWeek">7日分を表示</button>
-        <button type="button" class="secondary" id="copyTime">時間を全日にコピー</button>
+      <div class="row" style="margin-top:10px">
+        <button type="button" class="secondary" id="copyTime">最初の時間を全日にコピー</button>
+        <button type="button" class="secondary" id="clearAll">選択を全部解除</button>
       </div>
     </section>
 
-    <div id="weekArea"></div>
+    <div id="selectedArea"></div>
 
     <section class="card">
-      <button class="primary" id="submitWeek" type="button">7日分をまとめて送信</button>
+      <button class="primary" id="submitAll" type="button">選択した日をまとめて送信</button>
       <div id="message" class="msg"></div>
     </section>
 
-    <p class="small" style="text-align:center">同じ名前・同じ日付で再送信すると、その日の内容は最新の内容に更新されます。</p>
+    <p class="small" style="text-align:center">
+      同じ名前・同じ日付で再送信すると、その日の内容は最新の内容に更新されます。
+    </p>
   </div>
 
+<style>
+.calendar-head{display:grid;grid-template-columns:56px 1fr 56px;gap:8px;align-items:center;margin-bottom:10px}
+.month-title{text-align:center;font-weight:900;font-size:19px}
+.weekday-row,.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.weekday-row{margin-bottom:6px;color:var(--muted);font-size:12px;text-align:center;font-weight:700}
+.calendar-day{aspect-ratio:1/1;border:1px solid var(--line);background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;cursor:pointer}
+.calendar-day.selected{background:#dbeafe;border-color:#2563eb;color:#1d4ed8}
+.calendar-day.today{box-shadow:inset 0 0 0 2px #93c5fd}
+.selected-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+.selected-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.selected-title strong{font-size:18px}
+.remove-day{width:auto;border:0;background:transparent;color:#dc2626;font-weight:800;padding:4px 8px}
+</style>
+
 <script>
-const weekArea = document.getElementById('weekArea');
+const calendarEl = document.getElementById('calendar');
+const monthTitle = document.getElementById('monthTitle');
+const selectedArea = document.getElementById('selectedArea');
 const message = document.getElementById('message');
+
+const today = new Date();
+today.setHours(0,0,0,0);
+
+let viewYear = today.getFullYear();
+let viewMonth = today.getMonth();
+const selected = new Map();
 
 function fmtDate(date){
   const y = date.getFullYear();
@@ -211,149 +244,143 @@ function fmtDate(date){
   const d = String(date.getDate()).padStart(2,'0');
   return y+'-'+m+'-'+d;
 }
-
-function labelDate(date){
-  return new Intl.DateTimeFormat('ja-JP', {
-    month:'numeric', day:'numeric', weekday:'short'
-  }).format(date);
+function labelDate(iso){
+  const d = new Date(iso+'T00:00:00');
+  return new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'numeric',day:'numeric',weekday:'short'}).format(d);
 }
+function renderCalendar(){
+  monthTitle.textContent = viewYear+'年 '+(viewMonth+1)+'月';
+  calendarEl.innerHTML = '';
+  const first = new Date(viewYear, viewMonth, 1);
+  const startDay = first.getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
 
-function dayCard(date, idx){
-  const iso = fmtDate(date);
-  return `
-  <section class="card shift-day" data-date="${iso}">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div style="font-weight:900;font-size:19px">${labelDate(date)}</div>
-      <div class="small">${iso}</div>
-    </div>
+  for(let i=0;i<startDay;i++) calendarEl.appendChild(document.createElement('div'));
 
-    <div class="choice">
-      <button type="button" class="available active" data-action="available">出勤できます</button>
-      <button type="button" class="off" data-action="off">休み希望</button>
-    </div>
-
-    <input type="hidden" class="status" value="available">
-
-    <div class="timeArea">
-      <label>希望時間</label>
-      <div class="row">
-        <input class="startTime" type="time" aria-label="開始時間">
-        <input class="endTime" type="time" aria-label="終了時間">
+  for(let day=1; day<=daysInMonth; day++){
+    const d = new Date(viewYear, viewMonth, day);
+    const iso = fmtDate(d);
+    const btn = document.createElement('button');
+    btn.type='button';
+    btn.className='calendar-day';
+    btn.textContent=day;
+    if(d.getTime()===today.getTime()) btn.classList.add('today');
+    if(selected.has(iso)) btn.classList.add('selected');
+    btn.addEventListener('click',()=>{
+      if(selected.has(iso)) selected.delete(iso);
+      else selected.set(iso,{status:'available',start_time:'',end_time:'',note:''});
+      renderCalendar();
+      renderSelected();
+    });
+    calendarEl.appendChild(btn);
+  }
+}
+function renderSelected(){
+  const dates = [...selected.keys()].sort();
+  if(!dates.length){
+    selectedArea.innerHTML='<section class="card empty">まだ日付が選択されていません。</section>';
+    return;
+  }
+  selectedArea.innerHTML = dates.map(iso=>{
+    const item = selected.get(iso);
+    return `
+    <section class="selected-card" data-date="${iso}">
+      <div class="selected-title">
+        <strong>${labelDate(iso)}</strong>
+        <button type="button" class="remove-day">削除</button>
       </div>
-    </div>
 
-    <label>備考</label>
-    <textarea class="note" placeholder="例：17時まで／時間相談可 など"></textarea>
-  </section>`;
-}
+      <div class="choice">
+        <button type="button" class="available ${item.status==='available'?'active':''}" data-action="available">出勤できます</button>
+        <button type="button" class="off ${item.status==='off'?'active':''}" data-action="off">休み希望</button>
+      </div>
 
-function attachCardEvents(){
-  document.querySelectorAll('.shift-day').forEach(card=>{
-    const available = card.querySelector('[data-action="available"]');
-    const off = card.querySelector('[data-action="off"]');
-    const status = card.querySelector('.status');
-    const timeArea = card.querySelector('.timeArea');
+      <div class="time-area" style="${item.status==='off'?'display:none':''}">
+        <label>希望時間</label>
+        <div class="row">
+          <input class="startTime" type="time" value="${item.start_time||''}" aria-label="開始時間">
+          <input class="endTime" type="time" value="${item.end_time||''}" aria-label="終了時間">
+        </div>
+      </div>
 
-    function setStatus(v){
-      status.value = v;
-      available.classList.toggle('active', v==='available');
-      off.classList.toggle('active', v==='off');
-      timeArea.style.display = v==='available' ? 'block' : 'none';
-    }
-    available.addEventListener('click', ()=>setStatus('available'));
-    off.addEventListener('click', ()=>setStatus('off'));
+      <label>備考</label>
+      <textarea class="note" placeholder="例：17時まで／時間相談可 など">${item.note||''}</textarea>
+    </section>`;
+  }).join('');
+
+  document.querySelectorAll('.selected-card').forEach(card=>{
+    const iso = card.dataset.date;
+    const item = selected.get(iso);
+    const availableBtn = card.querySelector('[data-action="available"]');
+    const offBtn = card.querySelector('[data-action="off"]');
+    const startInput = card.querySelector('.startTime');
+    const endInput = card.querySelector('.endTime');
+    const noteInput = card.querySelector('.note');
+
+    availableBtn.addEventListener('click',()=>{item.status='available';renderSelected();renderCalendar();});
+    offBtn.addEventListener('click',()=>{item.status='off';item.start_time='';item.end_time='';renderSelected();renderCalendar();});
+    startInput.addEventListener('change',()=>item.start_time=startInput.value);
+    endInput.addEventListener('change',()=>item.end_time=endInput.value);
+    noteInput.addEventListener('input',()=>item.note=noteInput.value);
+    card.querySelector('.remove-day').addEventListener('click',()=>{selected.delete(iso);renderSelected();renderCalendar();});
   });
 }
 
-function renderWeek(){
-  const startValue = document.getElementById('weekStart').value;
-  message.className='msg';
-  message.textContent='';
-  if(!startValue){
-    message.className='msg err';
-    message.textContent='週の開始日を選んでください。';
-    return;
-  }
-  const start = new Date(startValue+'T00:00:00');
-  let html = '';
-  for(let i=0;i<7;i++){
-    const d = new Date(start);
-    d.setDate(start.getDate()+i);
-    html += dayCard(d,i);
-  }
-  weekArea.innerHTML = html;
-  attachCardEvents();
-}
-
-document.getElementById('applyWeek').addEventListener('click', renderWeek);
-
-document.getElementById('copyTime').addEventListener('click', ()=>{
-  const cards = [...document.querySelectorAll('.shift-day')];
-  if(!cards.length){
-    message.className='msg err';
-    message.textContent='先に7日分を表示してください。';
-    return;
-  }
-  const firstAvailable = cards.find(c => c.querySelector('.status').value === 'available') || cards[0];
-  const start = firstAvailable.querySelector('.startTime').value;
-  const end = firstAvailable.querySelector('.endTime').value;
-  cards.forEach(card=>{
-    if(card.querySelector('.status').value === 'available'){
-      card.querySelector('.startTime').value = start;
-      card.querySelector('.endTime').value = end;
-    }
-  });
-  message.className='msg ok';
-  message.textContent='希望時間を出勤可能日の全日にコピーしました。';
+document.getElementById('prevMonth').addEventListener('click',()=>{
+  viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} renderCalendar();
 });
-
-document.getElementById('submitWeek').addEventListener('click', async ()=>{
-  const name = document.getElementById('name').value.trim();
-  const cards = [...document.querySelectorAll('.shift-day')];
-  message.className='msg';
-  message.textContent='';
-
-  if(!name){
-    message.className='msg err';
-    message.textContent='名前を入力してください。';
-    return;
+document.getElementById('nextMonth').addEventListener('click',()=>{
+  viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} renderCalendar();
+});
+document.getElementById('clearAll').addEventListener('click',()=>{
+  selected.clear(); renderSelected(); renderCalendar();
+});
+document.getElementById('copyTime').addEventListener('click',()=>{
+  const dates=[...selected.keys()].sort();
+  if(!dates.length){
+    message.className='msg err'; message.textContent='先に日付を選択してください。'; return;
   }
-  if(cards.length !== 7){
-    message.className='msg err';
-    message.textContent='先に7日分を表示してください。';
-    return;
+  const source = dates.map(d=>selected.get(d)).find(v=>v.status==='available' && (v.start_time || v.end_time));
+  if(!source){
+    message.className='msg err'; message.textContent='まず1日分の希望時間を入力してください。'; return;
   }
+  dates.forEach(d=>{
+    const item=selected.get(d);
+    if(item.status==='available'){item.start_time=source.start_time;item.end_time=source.end_time;}
+  });
+  message.className='msg ok'; message.textContent='希望時間を出勤可能日の全日にコピーしました。';
+  renderSelected();
+});
+document.getElementById('submitAll').addEventListener('click', async ()=>{
+  const name=document.getElementById('name').value.trim();
+  const dates=[...selected.keys()].sort();
+  message.className='msg'; message.textContent='';
 
-  const items = cards.map(card=>{
-    const status = card.querySelector('.status').value;
-    return {
-      date: card.dataset.date,
-      status,
-      start_time: status === 'available' ? card.querySelector('.startTime').value : '',
-      end_time: status === 'available' ? card.querySelector('.endTime').value : '',
-      note: card.querySelector('.note').value.trim()
-    };
+  if(!name){message.className='msg err';message.textContent='名前を入力してください。';return;}
+  if(!dates.length){message.className='msg err';message.textContent='少なくとも1日選択してください。';return;}
+
+  const items=dates.map(date=>{
+    const v=selected.get(date);
+    return {date,status:v.status,start_time:v.status==='available'?v.start_time:'',end_time:v.status==='available'?v.end_time:'',note:v.note||''};
   });
 
   try{
-    const res = await fetch('/api/week', {
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({name, items})
-    });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error || '送信に失敗しました');
+    const res=await fetch('/api/multi',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,items})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'送信に失敗しました');
     message.className='msg ok';
-    message.textContent='1週間分をまとめて送信しました。';
+    message.textContent=items.length+'日分をまとめて送信しました。';
   }catch(err){
     message.className='msg err';
-    message.textContent=err.message || '送信に失敗しました';
+    message.textContent=err.message||'送信に失敗しました';
   }
 });
+
+renderCalendar();
+renderSelected();
 </script>`;
   return new Response(layout("シフト希望提出", body), { headers: HTML_HEADERS });
 }
-
 
 function adminLoginPage(error = "") {
   const body = `
@@ -471,6 +498,45 @@ async function deleteEntry(id){
   return new Response(layout("シフト希望 管理", body), { headers: HTML_HEADERS });
 }
 
+
+async function handleApiMulti(request, env) {
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  let data;
+  try { data = await request.json(); }
+  catch { return json({ error: "入力内容を読み取れませんでした" }, 400); }
+
+  const name = String(data.name || "").trim();
+  const items = Array.isArray(data.items) ? data.items : [];
+  if (!name) return json({ error: "名前を入力してください" }, 400);
+  if (name.length > 80) return json({ error: "名前が長すぎます" }, 400);
+  if (!items.length) return json({ error: "日付を選択してください" }, 400);
+  if (items.length > 62) return json({ error: "一度に送信できる日数が多すぎます" }, 400);
+
+  const stmts = [];
+  for (const item of items) {
+    const date = String(item.date || "").trim();
+    const status = item.status === "off" ? "off" : "available";
+    const start = status === "available" ? String(item.start_time || "").trim() : "";
+    const end = status === "available" ? String(item.end_time || "").trim() : "";
+    const note = String(item.note || "").trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "日付データに不備があります" }, 400);
+    if (note.length > 500) return json({ error: "備考が長すぎます" }, 400);
+
+    stmts.push(env.DB.prepare(`
+      INSERT INTO shift_requests (name, shift_date, status, start_time, end_time, note, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+9 hours'))
+      ON CONFLICT(name, shift_date) DO UPDATE SET
+        status=excluded.status,
+        start_time=excluded.start_time,
+        end_time=excluded.end_time,
+        note=excluded.note,
+        updated_at=datetime('now', '+9 hours')
+    `).bind(name, date, status, start, end, note));
+  }
+  await env.DB.batch(stmts);
+  return json({ ok: true, count: items.length });
+}
 
 async function handleApiWeek(request, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -592,6 +658,7 @@ export default {
       if (url.pathname === "/") return staffPage();
       if (url.pathname === "/api/shift") return handleApiShift(request, env);
       if (url.pathname === "/api/week") return handleApiWeek(request, env);
+      if (url.pathname === "/api/multi") return handleApiMulti(request, env);
 
       if (url.pathname === "/api/admin/delete") return handleAdminDelete(request, env);
       if (url.pathname === "/admin") return adminPage(request, env);

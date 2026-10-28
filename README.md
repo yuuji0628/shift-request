@@ -110,3 +110,13 @@ Settings → Variables and Secrets → Add
 
 - GitHubを Public にしても、`ADMIN_PASSWORD` はGitHubに書かないでください。
 - D1 Database ID は公開されても秘密情報ではありませんが、管理パスワードは必ずSecretで設定してください。
+
+
+## 最新UI
+- カレンダーから複数日選択
+- 日ごとに出勤可/休み
+- 日ごとに開始/終了時間
+- 日ごとに備考
+- 休みの日は時間欄自動非表示
+- 最初の入力時間を出勤可能日の全日にコピー
+- 選択日は日付順表示
