@@ -168,96 +168,183 @@ ${extraHead}
 <body>${body}</body></html>`;
 }
 
+
 function staffPage() {
   const body = `
   <div class="wrap">
     <section class="hero">
       <h1>シフト希望提出</h1>
-      <p>名前・日付・希望時間・休み・備考を入力して送信してください。</p>
+      <p>1週間分をまとめて入力して送信できます。</p>
     </section>
 
     <section class="card">
-      <form id="shiftForm">
-        <label for="name">名前</label>
-        <input id="name" name="name" autocomplete="name" placeholder="例：山田 太郎" required>
+      <label for="name">名前</label>
+      <input id="name" autocomplete="name" placeholder="例：山田 太郎">
 
-        <label for="date">日付</label>
-        <input id="date" name="date" type="date" required>
+      <label for="weekStart">週の開始日</label>
+      <input id="weekStart" type="date">
+      <p class="small" style="margin-top:-8px">開始日を選ぶと、その日から7日分を表示します。</p>
 
-        <label>希望</label>
-        <div class="choice">
-          <button type="button" id="availableBtn" class="available active">出勤できます</button>
-          <button type="button" id="offBtn" class="off">休み希望</button>
-        </div>
-        <input type="hidden" id="status" name="status" value="available">
-
-        <div id="timeArea">
-          <label>希望時間</label>
-          <div class="row">
-            <div>
-              <input id="startTime" type="time" aria-label="開始時間">
-            </div>
-            <div>
-              <input id="endTime" type="time" aria-label="終了時間">
-            </div>
-          </div>
-          <p class="small" style="margin-top:-8px">時間が決まっていない場合は空欄でも送信できます。</p>
-        </div>
-
-        <label for="note">備考</label>
-        <textarea id="note" placeholder="例：学校行事のため17時まで／時間は相談可能 など"></textarea>
-
-        <button class="primary" type="submit">この内容で送信する</button>
-        <div id="message" class="msg"></div>
-      </form>
+      <div class="row" style="margin-top:8px">
+        <button type="button" class="secondary" id="applyWeek">7日分を表示</button>
+        <button type="button" class="secondary" id="copyTime">時間を全日にコピー</button>
+      </div>
     </section>
 
-    <p class="small" style="text-align:center">送信後に内容を変更したい場合は、同じ名前・同じ日付で再送信してください。最新内容に更新されます。</p>
+    <div id="weekArea"></div>
+
+    <section class="card">
+      <button class="primary" id="submitWeek" type="button">7日分をまとめて送信</button>
+      <div id="message" class="msg"></div>
+    </section>
+
+    <p class="small" style="text-align:center">同じ名前・同じ日付で再送信すると、その日の内容は最新の内容に更新されます。</p>
   </div>
 
 <script>
-const availableBtn = document.getElementById('availableBtn');
-const offBtn = document.getElementById('offBtn');
-const statusInput = document.getElementById('status');
-const timeArea = document.getElementById('timeArea');
+const weekArea = document.getElementById('weekArea');
 const message = document.getElementById('message');
 
-function setStatus(status){
-  statusInput.value = status;
-  availableBtn.classList.toggle('active', status === 'available');
-  offBtn.classList.toggle('active', status === 'off');
-  timeArea.style.display = status === 'available' ? 'block' : 'none';
+function fmtDate(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+d;
 }
-availableBtn.addEventListener('click', ()=>setStatus('available'));
-offBtn.addEventListener('click', ()=>setStatus('off'));
 
-document.getElementById('shiftForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
+function labelDate(date){
+  return new Intl.DateTimeFormat('ja-JP', {
+    month:'numeric', day:'numeric', weekday:'short'
+  }).format(date);
+}
+
+function dayCard(date, idx){
+  const iso = fmtDate(date);
+  return `
+  <section class="card shift-day" data-date="${iso}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:900;font-size:19px">${labelDate(date)}</div>
+      <div class="small">${iso}</div>
+    </div>
+
+    <div class="choice">
+      <button type="button" class="available active" data-action="available">出勤できます</button>
+      <button type="button" class="off" data-action="off">休み希望</button>
+    </div>
+
+    <input type="hidden" class="status" value="available">
+
+    <div class="timeArea">
+      <label>希望時間</label>
+      <div class="row">
+        <input class="startTime" type="time" aria-label="開始時間">
+        <input class="endTime" type="time" aria-label="終了時間">
+      </div>
+    </div>
+
+    <label>備考</label>
+    <textarea class="note" placeholder="例：17時まで／時間相談可 など"></textarea>
+  </section>`;
+}
+
+function attachCardEvents(){
+  document.querySelectorAll('.shift-day').forEach(card=>{
+    const available = card.querySelector('[data-action="available"]');
+    const off = card.querySelector('[data-action="off"]');
+    const status = card.querySelector('.status');
+    const timeArea = card.querySelector('.timeArea');
+
+    function setStatus(v){
+      status.value = v;
+      available.classList.toggle('active', v==='available');
+      off.classList.toggle('active', v==='off');
+      timeArea.style.display = v==='available' ? 'block' : 'none';
+    }
+    available.addEventListener('click', ()=>setStatus('available'));
+    off.addEventListener('click', ()=>setStatus('off'));
+  });
+}
+
+function renderWeek(){
+  const startValue = document.getElementById('weekStart').value;
   message.className='msg';
   message.textContent='';
-  const payload = {
-    name: document.getElementById('name').value.trim(),
-    date: document.getElementById('date').value,
-    status: statusInput.value,
-    start_time: statusInput.value === 'available' ? document.getElementById('startTime').value : '',
-    end_time: statusInput.value === 'available' ? document.getElementById('endTime').value : '',
-    note: document.getElementById('note').value.trim()
-  };
+  if(!startValue){
+    message.className='msg err';
+    message.textContent='週の開始日を選んでください。';
+    return;
+  }
+  const start = new Date(startValue+'T00:00:00');
+  let html = '';
+  for(let i=0;i<7;i++){
+    const d = new Date(start);
+    d.setDate(start.getDate()+i);
+    html += dayCard(d,i);
+  }
+  weekArea.innerHTML = html;
+  attachCardEvents();
+}
+
+document.getElementById('applyWeek').addEventListener('click', renderWeek);
+
+document.getElementById('copyTime').addEventListener('click', ()=>{
+  const cards = [...document.querySelectorAll('.shift-day')];
+  if(!cards.length){
+    message.className='msg err';
+    message.textContent='先に7日分を表示してください。';
+    return;
+  }
+  const firstAvailable = cards.find(c => c.querySelector('.status').value === 'available') || cards[0];
+  const start = firstAvailable.querySelector('.startTime').value;
+  const end = firstAvailable.querySelector('.endTime').value;
+  cards.forEach(card=>{
+    if(card.querySelector('.status').value === 'available'){
+      card.querySelector('.startTime').value = start;
+      card.querySelector('.endTime').value = end;
+    }
+  });
+  message.className='msg ok';
+  message.textContent='希望時間を出勤可能日の全日にコピーしました。';
+});
+
+document.getElementById('submitWeek').addEventListener('click', async ()=>{
+  const name = document.getElementById('name').value.trim();
+  const cards = [...document.querySelectorAll('.shift-day')];
+  message.className='msg';
+  message.textContent='';
+
+  if(!name){
+    message.className='msg err';
+    message.textContent='名前を入力してください。';
+    return;
+  }
+  if(cards.length !== 7){
+    message.className='msg err';
+    message.textContent='先に7日分を表示してください。';
+    return;
+  }
+
+  const items = cards.map(card=>{
+    const status = card.querySelector('.status').value;
+    return {
+      date: card.dataset.date,
+      status,
+      start_time: status === 'available' ? card.querySelector('.startTime').value : '',
+      end_time: status === 'available' ? card.querySelector('.endTime').value : '',
+      note: card.querySelector('.note').value.trim()
+    };
+  });
+
   try{
-    const res = await fetch('/api/shift', {
+    const res = await fetch('/api/week', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body:JSON.stringify(payload)
+      body:JSON.stringify({name, items})
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || '送信に失敗しました');
     message.className='msg ok';
-    message.textContent='送信しました。ありがとうございます！';
-    document.getElementById('date').value='';
-    document.getElementById('startTime').value='';
-    document.getElementById('endTime').value='';
-    document.getElementById('note').value='';
-    setStatus('available');
+    message.textContent='1週間分をまとめて送信しました。';
   }catch(err){
     message.className='msg err';
     message.textContent=err.message || '送信に失敗しました';
@@ -266,6 +353,7 @@ document.getElementById('shiftForm').addEventListener('submit', async (e)=>{
 </script>`;
   return new Response(layout("シフト希望提出", body), { headers: HTML_HEADERS });
 }
+
 
 function adminLoginPage(error = "") {
   const body = `
@@ -383,6 +471,58 @@ async function deleteEntry(id){
   return new Response(layout("シフト希望 管理", body), { headers: HTML_HEADERS });
 }
 
+
+async function handleApiWeek(request, env) {
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  let data;
+  try {
+    data = await request.json();
+  } catch {
+    return json({ error: "入力内容を読み取れませんでした" }, 400);
+  }
+
+  const name = String(data.name || "").trim();
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  if (!name) return json({ error: "名前を入力してください" }, 400);
+  if (name.length > 80) return json({ error: "名前が長すぎます" }, 400);
+  if (items.length !== 7) return json({ error: "7日分のデータが必要です" }, 400);
+
+  const stmts = [];
+
+  for (const item of items) {
+    const date = String(item.date || "").trim();
+    const status = item.status === "off" ? "off" : "available";
+    const start = status === "available" ? String(item.start_time || "").trim() : "";
+    const end = status === "available" ? String(item.end_time || "").trim() : "";
+    const note = String(item.note || "").trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return json({ error: "日付データに不備があります" }, 400);
+    }
+    if (note.length > 500) {
+      return json({ error: "備考が長すぎます" }, 400);
+    }
+
+    stmts.push(
+      env.DB.prepare(`
+        INSERT INTO shift_requests (name, shift_date, status, start_time, end_time, note, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+9 hours'))
+        ON CONFLICT(name, shift_date) DO UPDATE SET
+          status=excluded.status,
+          start_time=excluded.start_time,
+          end_time=excluded.end_time,
+          note=excluded.note,
+          updated_at=datetime('now', '+9 hours')
+      `).bind(name, date, status, start, end, note)
+    );
+  }
+
+  await env.DB.batch(stmts);
+  return json({ ok: true, count: 7 });
+}
+
 async function handleApiShift(request, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
   let data;
@@ -451,6 +591,7 @@ export default {
     try {
       if (url.pathname === "/") return staffPage();
       if (url.pathname === "/api/shift") return handleApiShift(request, env);
+      if (url.pathname === "/api/week") return handleApiWeek(request, env);
 
       if (url.pathname === "/api/admin/delete") return handleAdminDelete(request, env);
       if (url.pathname === "/admin") return adminPage(request, env);
