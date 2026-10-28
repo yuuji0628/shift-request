@@ -857,6 +857,11 @@ document.querySelectorAll('.person').forEach(card=>{
   });
 
   card.querySelector('.save-actual').addEventListener('click', async ()=>{
+    const saveBtn = card.querySelector('.save-actual');
+    const originalText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中...';
+
     const payload = {
       name: card.dataset.name,
       date: card.dataset.date,
@@ -866,17 +871,21 @@ document.querySelectorAll('.person').forEach(card=>{
       admin_note: card.querySelector('.admin-note').value.trim()
     };
 
-    const res = await fetch('/api/admin/actual', {
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if(res.ok){
-      alert('保存しました');
-      location.reload();
-    }else{
-      alert(data.error || '保存できませんでした');
+    try {
+      const res = await fetch('/api/admin/actual', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || '保存できませんでした');
+
+      saveBtn.textContent = '保存しました ✓';
+      setTimeout(()=>location.reload(), 500);
+    } catch(err) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalText;
+      alert(err.message || '保存できませんでした');
     }
   });
 });
@@ -1086,6 +1095,7 @@ export default {
       if (url.pathname === "/api/week") return handleApiWeek(request, env);
       if (url.pathname === "/api/multi") return handleApiMulti(request, env);
 
+      if (url.pathname === "/api/admin/actual") return handleAdminActual(request, env);
       if (url.pathname === "/api/admin/delete") return handleAdminDelete(request, env);
       if (url.pathname === "/admin") return adminPage(request, env);
 

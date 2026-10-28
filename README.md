@@ -159,3 +159,8 @@ Settings → Variables and Secrets → Add
 - － = 入れていない
 - 休 = 休み希望
 - 連勤警告を名前横に表示
+
+
+## 保存修正
+- /api/admin/actual ルートを追加
+- 確定内容保存時に「保存中...」「保存しました ✓」を表示
