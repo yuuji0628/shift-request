@@ -223,6 +223,49 @@ function staffPage() {
 .selected-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .selected-title strong{font-size:18px}
 .remove-day{width:auto;border:0;background:transparent;color:#dc2626;font-weight:800;padding:4px 8px}
+
+/* compact mobile layout */
+.selected-card{
+  padding:12px;
+  margin-bottom:10px;
+  border-radius:14px;
+}
+.selected-title{
+  margin-bottom:8px;
+}
+.selected-title strong{
+  font-size:17px;
+}
+.selected-card .choice{
+  gap:8px;
+  margin-bottom:10px;
+}
+.selected-card .choice button{
+  padding:10px 8px;
+  font-size:15px;
+}
+.selected-card .time-area label,
+.selected-card > label{
+  margin-bottom:5px;
+}
+.selected-card .row{
+  grid-template-columns:1fr 1fr !important;
+  gap:8px;
+}
+.selected-card input{
+  padding:10px 8px;
+  margin-bottom:10px;
+}
+.selected-card textarea{
+  min-height:66px;
+  height:66px;
+  padding:10px;
+  margin-bottom:0;
+}
+.remove-day{
+  font-size:14px;
+}
+
 </style>
 
 <script>
