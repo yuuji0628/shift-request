@@ -179,6 +179,15 @@ textarea{min-height:100px;resize:vertical}
 .summary-item{background:#f8fafc;border-radius:12px;padding:10px}
 .summary-item b{display:block;font-size:18px}
 
+
+.person-summary{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
+.person-summary-left{display:flex;align-items:center;gap:8px;min-width:0}
+.person-summary .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person-toggle{width:auto;border:0;background:transparent;font-size:20px;padding:4px 6px}
+.person-details{display:none;margin-top:10px}
+.person.open .person-details{display:block}
+.person.open .person-toggle{transform:rotate(180deg)}
+
 </style>
 ${extraHead}
 </head>
@@ -600,39 +609,45 @@ async function adminPage(request, env) {
       const assigned = Number(p.assigned) === 1;
       return `
       <div class="person" data-name="${escapeHtml(p.name)}" data-date="${escapeHtml(p.shift_date)}">
-        <div>
-          <span class="name">${escapeHtml(p.name)}</span>
-          <span class="badge ${p.status === "available" ? "available" : "off"}">
-            ${p.status === "available" ? "出勤可" : "休み希望"}
-          </span>
-          ${streakBadge(streaks[p.name] || 0)}
+        <div class="person-summary">
+          <div class="person-summary-left">
+            <span class="name">${escapeHtml(p.name)}</span>
+            <span class="badge ${p.status === "available" ? "available" : "off"}">
+              ${p.status === "available" ? "出勤可" : "休み希望"}
+            </span>
+            ${streakBadge(streaks[p.name] || 0)}
+          </div>
+          <button type="button" class="person-toggle" aria-label="詳細を開く">⌄</button>
         </div>
 
-        <div class="meta">
-          希望：
-          ${p.status === "available"
-            ? (p.start_time || p.end_time
-              ? `${escapeHtml(p.start_time || "未定")} 〜 ${escapeHtml(p.end_time || "未定")}`
-              : "時間未指定")
-            : "休み"}
-        </div>
+        <div class="person-details">
+          <div class="meta">
+            希望：
+            ${p.status === "available"
+              ? (p.start_time || p.end_time
+                ? `${escapeHtml(p.start_time || "未定")} 〜 ${escapeHtml(p.end_time || "未定")}`
+                : "時間未指定")
+              : "休み"}
+          </div>
 
-        ${p.note ? `<div class="note">備考：${escapeHtml(p.note)}</div>` : ""}
+          ${p.note ? `<div class="note">備考：${escapeHtml(p.note)}</div>` : ""}
 
-        <div class="admin-actions">
-          <button type="button" class="assign-btn ${assigned ? "active-yes" : ""}" data-assigned="1">シフトに入れた</button>
-          <button type="button" class="assign-btn ${!assigned ? "active-no" : ""}" data-assigned="0">入れていない</button>
-        </div>
+          <div class="admin-actions">
+            <button type="button" class="assign-btn ${assigned ? "active-yes" : ""}" data-assigned="1">シフトに入れた</button>
+            <button type="button" class="assign-btn ${!assigned ? "active-no" : ""}" data-assigned="0">入れていない</button>
+          </div>
 
-        <div class="actual-row">
-          <input class="actual-start" type="time" step="900" value="${escapeHtml(p.actual_start)}" aria-label="実際の開始時間">
-          <input class="actual-end" type="time" step="900" value="${escapeHtml(p.actual_end)}" aria-label="実際の終了時間">
-        </div>
-        <textarea class="admin-note" placeholder="管理メモ">${escapeHtml(p.admin_note)}</textarea>
-        <button type="button" class="secondary save-actual" style="margin-top:8px">確定内容を保存</button>
+          <div class="actual-row">
+            <input class="actual-start" type="time" step="900" value="${escapeHtml(p.actual_start)}" aria-label="実際の開始時間">
+            <input class="actual-end" type="time" step="900" value="${escapeHtml(p.actual_end)}" aria-label="実際の終了時間">
+          </div>
 
-        <div style="margin-top:8px">
-          <button class="danger" onclick="deleteEntry(${p.id})">希望データを削除</button>
+          <textarea class="admin-note" placeholder="管理メモ">${escapeHtml(p.admin_note)}</textarea>
+          <button type="button" class="secondary save-actual" style="margin-top:8px">確定内容を保存</button>
+
+          <div style="margin-top:8px">
+            <button class="danger" onclick="deleteEntry(${p.id})">希望データを削除</button>
+          </div>
         </div>
       </div>`;
     }).join("");
@@ -671,6 +686,14 @@ async function adminPage(request, env) {
 
 <script>
 document.querySelectorAll('.person').forEach(card=>{
+  const summary = card.querySelector('.person-summary');
+  if(summary){
+    summary.addEventListener('click', (e)=>{
+      if(e.target.closest('button') && !e.target.classList.contains('person-toggle')) return;
+      card.classList.toggle('open');
+    });
+  }
+
   let assigned = card.querySelector('[data-assigned="1"]').classList.contains('active-yes') ? 1 : 0;
 
   card.querySelectorAll('.assign-btn').forEach(btn=>{
