@@ -303,7 +303,7 @@ function staffPage() {
       <p class="small">日付をタップすると選択／解除できます。複数選択できます。</p>
 
       <div class="row" style="margin-top:10px">
-        <button type="button" class="secondary" id="copyTime">最初の開始時間を全日にコピー</button>
+        <button type="button" class="secondary" id="copyTime">最初の入り時間を全日にコピー</button>
         <button type="button" class="secondary" id="clearAll">選択を全部解除</button>
       </div>
     </section>
@@ -474,8 +474,8 @@ function renderSelected(){
       + '</div>'
       + '<div class="time-area" style="'+(item.status==='off'?'display:none':'')+'">'
       + '<label>希望時間</label><div class="row">'
-      + '<input class="startTime" type="time" step="900" value="'+(item.start_time||'')+'" aria-label="開始時間">'
-      + '<input class="endTime" type="time" step="900" value="'+(item.end_time||'')+'" aria-label="終了時間">'
+      + '<input class="startTime" type="time" step="900" value="'+(item.start_time||'')+'" aria-label="入り時間">'
+      + ''
       + '</div></div>'
       + '<label>備考</label>'
       + '<textarea class="note" placeholder="例：17時まで／時間相談可 など">'+(item.note||'')+'</textarea>'
@@ -516,13 +516,13 @@ document.getElementById('copyTime').addEventListener('click',()=>{
   }
   const source = dates.map(d=>selected.get(d)).find(v=>v.status==='available' && v.start_time);
   if(!source){
-    message.className='msg err'; message.textContent='まず1日分の開始可能時間を入力してください。'; return;
+    message.className='msg err'; message.textContent='まず1日分の入り時間を入力してください。'; return;
   }
   dates.forEach(d=>{
     const item=selected.get(d);
     if(item.status==='available'){item.start_time=source.start_time;}
   });
-  message.className='msg ok'; message.textContent='開始可能時間を◯の日にコピーしました。';
+  message.className='msg ok'; message.textContent='入り時間を◯の日にコピーしました。';
   renderSelected();
 });
 document.getElementById('submitAll').addEventListener('click', async ()=>{
@@ -768,7 +768,7 @@ async function adminPage(request, env) {
           <div class="meta">
             希望：
             ${p.status === "available"
-              ? (p.start_time ? `${escapeHtml(p.start_time)}から可能` : "時間希望なし")
+              ? (p.start_time ? `${escapeHtml(p.start_time)}入り` : "入り時間指定なし")
               : "休み"}
           </div>
 
