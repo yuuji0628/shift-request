@@ -164,3 +164,9 @@ Settings → Variables and Secrets → Add
 ## 保存修正
 - /api/admin/actual ルートを追加
 - 確定内容保存時に「保存中...」「保存しました ✓」を表示
+
+
+## スタッフ側15分刻み修正
+- iPhone標準時間ピッカーを廃止
+- 開始/終了時間をselect化
+- 00/15/30/45のみ選択可能
