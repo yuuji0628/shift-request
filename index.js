@@ -283,29 +283,20 @@ function renderSelected(){
   }
   selectedArea.innerHTML = dates.map(iso=>{
     const item = selected.get(iso);
-    return `
-    <section class="selected-card" data-date="${iso}">
-      <div class="selected-title">
-        <strong>${labelDate(iso)}</strong>
-        <button type="button" class="remove-day">削除</button>
-      </div>
-
-      <div class="choice">
-        <button type="button" class="available ${item.status==='available'?'active':''}" data-action="available">出勤できます</button>
-        <button type="button" class="off ${item.status==='off'?'active':''}" data-action="off">休み希望</button>
-      </div>
-
-      <div class="time-area" style="${item.status==='off'?'display:none':''}">
-        <label>希望時間</label>
-        <div class="row">
-          <input class="startTime" type="time" value="${item.start_time||''}" aria-label="開始時間">
-          <input class="endTime" type="time" value="${item.end_time||''}" aria-label="終了時間">
-        </div>
-      </div>
-
-      <label>備考</label>
-      <textarea class="note" placeholder="例：17時まで／時間相談可 など">${item.note||''}</textarea>
-    </section>`;
+    return '<section class="selected-card" data-date="'+iso+'">'
+      + '<div class="selected-title"><strong>'+labelDate(iso)+'</strong><button type="button" class="remove-day">削除</button></div>'
+      + '<div class="choice">'
+      + '<button type="button" class="available '+(item.status==='available'?'active':'')+'" data-action="available">出勤できます</button>'
+      + '<button type="button" class="off '+(item.status==='off'?'active':'')+'" data-action="off">休み希望</button>'
+      + '</div>'
+      + '<div class="time-area" style="'+(item.status==='off'?'display:none':'')+'">'
+      + '<label>希望時間</label><div class="row">'
+      + '<input class="startTime" type="time" value="'+(item.start_time||'')+'" aria-label="開始時間">'
+      + '<input class="endTime" type="time" value="'+(item.end_time||'')+'" aria-label="終了時間">'
+      + '</div></div>'
+      + '<label>備考</label>'
+      + '<textarea class="note" placeholder="例：17時まで／時間相談可 など">'+(item.note||'')+'</textarea>'
+      + '</section>';
   }).join('');
 
   document.querySelectorAll('.selected-card').forEach(card=>{
