@@ -182,7 +182,26 @@ textarea{min-height:100px;resize:vertical}
 </style>
 ${extraHead}
 </head>
-<body>${body}</body></html>`;
+<body>${body}
+<script>
+document.addEventListener('change', function(e){
+  if(e.target && e.target.matches('input[type="time"]')){
+    const value = e.target.value;
+    if(!value) return;
+    const parts = value.split(':').map(Number);
+    let h = parts[0] || 0;
+    let m = parts[1] || 0;
+    m = Math.round(m / 15) * 15;
+    if(m === 60){
+      h = (h + 1) % 24;
+      m = 0;
+    }
+    e.target.value = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  }
+});
+</script>
+
+</body></html>`;
 }
 
 
@@ -351,8 +370,8 @@ function renderSelected(){
       + '</div>'
       + '<div class="time-area" style="'+(item.status==='off'?'display:none':'')+'">'
       + '<label>希望時間</label><div class="row">'
-      + '<input class="startTime" type="time" value="'+(item.start_time||'')+'" aria-label="開始時間">'
-      + '<input class="endTime" type="time" value="'+(item.end_time||'')+'" aria-label="終了時間">'
+      + '<input class="startTime" type="time" step="900" value="'+(item.start_time||'')+'" aria-label="開始時間">'
+      + '<input class="endTime" type="time" step="900" value="'+(item.end_time||'')+'" aria-label="終了時間">'
       + '</div></div>'
       + '<label>備考</label>'
       + '<textarea class="note" placeholder="例：17時まで／時間相談可 など">'+(item.note||'')+'</textarea>'
@@ -606,8 +625,8 @@ async function adminPage(request, env) {
         </div>
 
         <div class="actual-row">
-          <input class="actual-start" type="time" value="${escapeHtml(p.actual_start)}" aria-label="実際の開始時間">
-          <input class="actual-end" type="time" value="${escapeHtml(p.actual_end)}" aria-label="実際の終了時間">
+          <input class="actual-start" type="time" step="900" value="${escapeHtml(p.actual_start)}" aria-label="実際の開始時間">
+          <input class="actual-end" type="time" step="900" value="${escapeHtml(p.actual_end)}" aria-label="実際の終了時間">
         </div>
         <textarea class="admin-note" placeholder="管理メモ">${escapeHtml(p.admin_note)}</textarea>
         <button type="button" class="secondary save-actual" style="margin-top:8px">確定内容を保存</button>
