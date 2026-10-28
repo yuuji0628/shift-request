@@ -188,28 +188,20 @@ textarea{min-height:100px;resize:vertical}
 .person.open .person-details{display:block}
 .person.open .person-toggle{transform:rotate(180deg)}
 
+
+.selected-card select{
+  padding:10px 8px;
+  margin-bottom:10px;
+}
+.actual-row select{
+  margin:0;
+  padding:9px 8px;
+}
+
 </style>
 ${extraHead}
 </head>
 <body>${body}
-<script>
-document.addEventListener('change', function(e){
-  if(e.target && e.target.matches('input[type="time"]')){
-    const value = e.target.value;
-    if(!value) return;
-    const parts = value.split(':').map(Number);
-    let h = parts[0] || 0;
-    let m = parts[1] || 0;
-    m = Math.round(m / 15) * 15;
-    if(m === 60){
-      h = (h + 1) % 24;
-      m = 0;
-    }
-    e.target.value = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
-  }
-});
-</script>
-
 </body></html>`;
 }
 
@@ -363,6 +355,19 @@ function renderCalendar(){
     calendarEl.appendChild(btn);
   }
 }
+
+function fillTimeSelect15(select){
+  const current = select.dataset.value || '';
+  let html = '<option value="">未定</option>';
+  for(let h=0; h<24; h++){
+    for(const m of [0,15,30,45]){
+      const value = String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+      html += '<option value="'+value+'"'+(value===current?' selected':'')+'>'+value+'</option>';
+    }
+  }
+  select.innerHTML = html;
+}
+
 function renderSelected(){
   const dates = [...selected.keys()].sort();
   if(!dates.length){
@@ -386,6 +391,8 @@ function renderSelected(){
       + '<textarea class="note" placeholder="例：17時まで／時間相談可 など">'+(item.note||'')+'</textarea>'
       + '</section>';
   }).join('');
+
+  document.querySelectorAll('.startTime, .endTime').forEach(fillTimeSelect15);
 
   document.querySelectorAll('.selected-card').forEach(card=>{
     const iso = card.dataset.date;
@@ -543,6 +550,18 @@ function calcStreaks(rows) {
   return result;
 }
 
+
+function timeOptions15(selected = "") {
+  let html = `<option value="">未定</option>`;
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      const value = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+      html += `<option value="${value}"${value === selected ? " selected" : ""}>${value}</option>`;
+    }
+  }
+  return html;
+}
+
 function streakBadge(n) {
   if (!n) return "";
   if (n >= 6) return `<span class="streak danger">${n}連勤</span>`;
@@ -638,8 +657,8 @@ async function adminPage(request, env) {
           </div>
 
           <div class="actual-row">
-            <input class="actual-start" type="time" step="900" value="${escapeHtml(p.actual_start)}" aria-label="実際の開始時間">
-            <input class="actual-end" type="time" step="900" value="${escapeHtml(p.actual_end)}" aria-label="実際の終了時間">
+            <select class="actual-start" aria-label="実際の開始時間">${timeOptions15(p.actual_start)}</select>
+            <select class="actual-end" aria-label="実際の終了時間">${timeOptions15(p.actual_end)}</select>
           </div>
 
           <textarea class="admin-note" placeholder="管理メモ">${escapeHtml(p.admin_note)}</textarea>
