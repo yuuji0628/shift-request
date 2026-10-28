@@ -198,6 +198,78 @@ textarea{min-height:100px;resize:vertical}
   padding:9px 8px;
 }
 
+
+.matrix-wrap{
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#fff;
+  margin-bottom:14px;
+}
+.shift-matrix{
+  border-collapse:separate;
+  border-spacing:0;
+  min-width:max-content;
+  width:100%;
+  font-size:13px;
+}
+.shift-matrix th,
+.shift-matrix td{
+  border-right:1px solid #e5e7eb;
+  border-bottom:1px solid #e5e7eb;
+  text-align:center;
+  padding:8px 9px;
+  min-width:46px;
+  white-space:nowrap;
+}
+.shift-matrix thead th{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#f8fafc;
+  font-weight:900;
+}
+.shift-matrix .name-col{
+  position:sticky;
+  left:0;
+  z-index:4;
+  min-width:120px;
+  max-width:160px;
+  text-align:left;
+  background:#fff;
+  font-weight:900;
+}
+.shift-matrix thead .name-col{
+  background:#f8fafc;
+  z-index:5;
+}
+.matrix-circle{
+  font-size:18px;
+  font-weight:900;
+  color:#047857;
+}
+.matrix-off{
+  font-weight:900;
+  color:#b91c1c;
+}
+.matrix-none{
+  color:#94a3b8;
+}
+.matrix-day-sun{color:#dc2626}
+.matrix-day-sat{color:#2563eb}
+.matrix-caption{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
+}
+.matrix-legend{
+  font-size:12px;
+  color:var(--muted);
+}
+
 </style>
 ${extraHead}
 </head>
@@ -609,6 +681,43 @@ async function adminPage(request, env) {
 
   const streaks = calcStreaks(streakRows.results || []);
 
+  const daysInMonth = new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate();
+  const dayKeys = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    dayKeys.push(month + "-" + String(d).padStart(2, "0"));
+  }
+
+  const matrixPeopleMap = {};
+  for (const r of rows.results || []) {
+    if (!matrixPeopleMap[r.name]) matrixPeopleMap[r.name] = {};
+    matrixPeopleMap[r.name][r.shift_date] = {
+      status: r.status,
+      assigned: Number(r.assigned) === 1
+    };
+  }
+
+  const matrixHeader = dayKeys.map(date => {
+    const d = new Date(date + "T00:00:00");
+    const dow = d.getDay();
+    const cls = dow === 0 ? "matrix-day-sun" : dow === 6 ? "matrix-day-sat" : "";
+    return `<th class="${cls}">${d.getDate()}<br><span class="small">${["日","月","火","水","木","金","土"][dow]}</span></th>`;
+  }).join("");
+
+  const matrixRows = Object.keys(matrixPeopleMap).sort((a,b)=>a.localeCompare(b,"ja")).map(name => {
+    const cells = dayKeys.map(date => {
+      const item = matrixPeopleMap[name][date];
+      if (!item) return `<td class="matrix-none">·</td>`;
+      if (item.status === "off") return `<td class="matrix-off">休</td>`;
+      if (item.assigned) return `<td class="matrix-circle">◯</td>`;
+      return `<td class="matrix-none">－</td>`;
+    }).join("");
+
+    return `<tr>
+      <td class="name-col">${escapeHtml(name)} ${streakBadge(streaks[name] || 0)}</td>
+      ${cells}
+    </tr>`;
+  }).join("");
+
   const grouped = {};
   for (const r of rows.results || []) {
     (grouped[r.shift_date] ||= []).push(r);
@@ -688,6 +797,30 @@ async function adminPage(request, env) {
         <input type="month" name="month" value="${escapeHtml(month)}" style="margin:0">
         <button class="secondary" type="submit">表示</button>
       </form>
+    </section>
+
+
+    <section>
+      <div class="matrix-caption">
+        <div>
+          <h2 style="margin:0;font-size:18px">シフト実績表</h2>
+          <div class="small">名前ごとに、実際にシフトへ入った日を確認できます。</div>
+        </div>
+        <div class="matrix-legend">◯ 入った / － 入っていない / 休 休み希望</div>
+      </div>
+      <div class="matrix-wrap">
+        <table class="shift-matrix">
+          <thead>
+            <tr>
+              <th class="name-col">名前</th>
+              ${matrixHeader}
+            </tr>
+          </thead>
+          <tbody>
+            ${matrixRows || '<tr><td class="name-col">データなし</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="summary-card">
